@@ -22,11 +22,20 @@ if ! command -v docker &> /dev/null; then
     echo "Docker를 먼저 설치해주세요: https://docs.docker.com/get-docker/"
     exit 1
 fi
-if ! command -v docker-compose &> /dev/null; then
+
+# Docker Compose 확인 (docker-compose 또는 docker compose)
+DOCKER_COMPOSE_CMD=""
+if docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+    echo -e "${GREEN}✓ Docker Compose (v2) 확인 완료${NC}"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+    echo -e "${GREEN}✓ Docker Compose (v1) 확인 완료${NC}"
+else
     echo -e "${RED}Error: Docker Compose가 설치되어 있지 않습니다.${NC}"
+    echo "Docker Compose를 먼저 설치해주세요: https://docs.docker.com/compose/install/"
     exit 1
 fi
-echo -e "${GREEN}✓ Docker 확인 완료${NC}"
 echo ""
 
 # 2. Python 확인
@@ -113,12 +122,8 @@ echo ""
 
 # 6. Docker 서비스 시작
 echo -e "${YELLOW}[6/8] Docker 서비스 시작 중...${NC}"
-# docker compose (v2) 또는 docker-compose (v1) 사용
-if docker compose version &> /dev/null; then
-    docker compose up -d 2>&1 | grep -v "attribute .version. is obsolete" || true
-else
-    docker-compose up -d
-fi
+# 확인된 Docker Compose 명령어 사용
+$DOCKER_COMPOSE_CMD up -d 2>&1 | grep -v "attribute .version. is obsolete" || true
 echo "Qdrant와 Redis가 시작되기를 기다리는 중..."
 sleep 5
 echo -e "${GREEN}✓ Docker 서비스 시작 완료${NC}"
@@ -204,10 +209,17 @@ echo "   python command_rag_pipeline.py          (기본 CLI)"
 echo "   python api.py                   (REST API 서버)"
 echo ""
 echo "Docker 서비스 관리:"
-echo "  - 중지: docker compose stop"
-echo "  - 시작: docker compose start"
-echo "  - 상태: docker compose ps"
-echo "  - 로그: docker compose logs"
+if [ "$DOCKER_COMPOSE_CMD" = "docker compose" ]; then
+    echo "  - 중지: docker compose stop"
+    echo "  - 시작: docker compose start"
+    echo "  - 상태: docker compose ps"
+    echo "  - 로그: docker compose logs"
+else
+    echo "  - 중지: docker-compose stop"
+    echo "  - 시작: docker-compose start"
+    echo "  - 상태: docker-compose ps"
+    echo "  - 로그: docker-compose logs"
+fi
 echo ""
 echo "문서:"
 echo "  - 기본 가이드: README.md"
