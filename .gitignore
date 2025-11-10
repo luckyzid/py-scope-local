@@ -1,0 +1,21 @@
+# Environment
+.env
+venv/
+env/
+*.pyc
+__pycache__/
+
+# Data
+qdrant_storage/
+redis_data/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
