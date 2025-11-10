@@ -1,0 +1,20 @@
+{
+  "session_id": "20251110_164455",
+  "messages": [
+    {
+      "role": "user",
+      "content": "-e Galaxy S22의 배터리 용량은?",
+      "timestamp": "2025-11-10T16:44:55.352772",
+      "metadata": null
+    },
+    {
+      "role": "assistant",
+      "content": "Samsung Galaxy S22의 배터리 용량은 **4,700 mAh**입니다. 이는 일반적인 사용 패턴에 따라 충분한 에너지를 제공하여 하루 동안 대부분의 스마트폰 기능을 원활하게 사용할 수 있게 설계되었습니다. 하지만 정확한 성능은 사용 환경과 설정에 따라 다소 차이가 있을 수 있습니다.",
+      "timestamp": "2025-11-10T16:44:57.913138",
+      "metadata": null
+    }
+  ],
+  "created_at": "2025-11-10T16:44:55.352731",
+  "updated_at": "2025-11-10T16:44:57.913147",
+  "metadata": null
+}
