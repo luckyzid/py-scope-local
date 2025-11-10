@@ -125,25 +125,7 @@ class VectorStoreManager:
             image_embeddings.append(embedding)
             metadatas.append(metadata)
 
-        # Create documents for Qdrant (using dummy text since we're storing image embeddings)
-        image_documents = []
-        for i, (embedding, metadata) in enumerate(zip(image_embeddings, metadatas)):
-            doc = Document(
-                page_content=f"Image {i}",  # Dummy content
-                metadata=metadata
-            )
-            image_documents.append(doc)
-
-        # Add to Qdrant with pre-computed embeddings
-        self.image_vector_store = Qdrant.from_documents(
-            image_documents,
-            embedding=self.embeddings,  # This will be overridden
-            url=f"http://{config.qdrant.host}:{config.qdrant.port}",
-            collection_name=self.image_collection_name,
-            force_recreate=False
-        )
-
-        # Manually add vectors since Qdrant.from_documents doesn't support pre-computed embeddings well
+        # Directly add vectors to Qdrant (skip LangChain wrapper)
         from qdrant_client.models import PointStruct
         points = []
         for i, (embedding, metadata) in enumerate(zip(image_embeddings, metadatas)):
