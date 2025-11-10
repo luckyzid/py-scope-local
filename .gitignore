@@ -8,6 +8,8 @@ __pycache__/
 # Data
 qdrant_storage/
 redis_data/
+logs/
+metrics/
 *.log
 
 # IDE
