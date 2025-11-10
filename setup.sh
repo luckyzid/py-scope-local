@@ -16,7 +16,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # 1. Docker 확인
-echo -e "${YELLOW}[1/7] Docker 확인 중...${NC}"
+echo -e "${YELLOW}[1/8] Docker 확인 중...${NC}"
 if ! command -v docker &> /dev/null; then
     echo -e "${RED}Error: Docker가 설치되어 있지 않습니다.${NC}"
     echo "Docker를 먼저 설치해주세요: https://docs.docker.com/get-docker/"
@@ -30,7 +30,7 @@ echo -e "${GREEN}✓ Docker 확인 완료${NC}"
 echo ""
 
 # 2. Python 확인
-echo -e "${YELLOW}[2/7] Python 확인 중...${NC}"
+echo -e "${YELLOW}[3/8] Python 확인 중...${NC}"
 if ! command -v python3 &> /dev/null; then
     echo -e "${RED}Error: Python3가 설치되어 있지 않습니다.${NC}"
     exit 1
@@ -39,16 +39,61 @@ PYTHON_VERSION=$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1,2)
 echo -e "${GREEN}✓ Python $PYTHON_VERSION 확인 완료${NC}"
 echo ""
 
-# 3. Ollama 확인
-echo -e "${YELLOW}[3/7] Ollama 확인 중...${NC}"
-if ! command -v ollama &> /dev/null; then
-    echo -e "${RED}Warning: Ollama가 설치되어 있지 않습니다.${NC}"
-    echo "Ollama 설치 방법:"
-    echo "  curl -fsSL https://ollama.com/install.sh | sh"
+# 3. 시스템 의존성 설치
+echo -e "${YELLOW}[3/8] 시스템 의존성 설치 중...${NC}"
+if command -v brew &> /dev/null; then
+    echo "문서 처리에 필요한 패키지 설치 중... (macOS)"
+    brew install poppler tesseract libmagic imagemagick
+    echo -e "${GREEN}✓ 시스템 의존성 설치 완료${NC}"
+elif command -v apt &> /dev/null; then
+    echo "문서 처리에 필요한 패키지 설치 중... (Ubuntu/Debian)"
+    sudo apt update && sudo apt install -y poppler-utils tesseract-ocr libmagic-dev imagemagick
+    echo -e "${GREEN}✓ 시스템 의존성 설치 완료${NC}"
+elif command -v yum &> /dev/null; then
+    echo "문서 처리에 필요한 패키지 설치 중... (CentOS/RHEL)"
+    sudo yum install -y poppler-utils tesseract libmagic imagemagick
+    echo -e "${GREEN}✓ 시스템 의존성 설치 완료${NC}"
+elif command -v dnf &> /dev/null; then
+    echo "문서 처리에 필요한 패키지 설치 중... (Fedora)"
+    sudo dnf install -y poppler-utils tesseract libmagic imagemagick
+    echo -e "${GREEN}✓ 시스템 의존성 설치 완료${NC}"
+else
+    echo -e "${YELLOW}Warning: 지원되는 패키지 매니저를 찾을 수 없습니다.${NC}"
+    echo "문서 처리에 필요한 시스템 패키지를 수동으로 설치해주세요:"
+    echo "  Ubuntu/Debian: sudo apt install poppler-utils tesseract-ocr libmagic-dev imagemagick"
+    echo "  CentOS/RHEL: sudo yum install poppler-utils tesseract libmagic imagemagick"
+    echo "  Fedora: sudo dnf install poppler-utils tesseract libmagic imagemagick"
+    echo "  macOS: brew install poppler tesseract libmagic imagemagick"
     echo ""
     read -p "계속 진행하시겠습니까? (y/n) " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+echo ""
+
+# 4. Ollama 설치
+echo -e "${YELLOW}[4/8] Ollama 확인 및 설치 중...${NC}"
+if ! command -v ollama &> /dev/null; then
+    echo "Ollama가 설치되어 있지 않습니다. 자동으로 설치합니다..."
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        curl -fsSL https://ollama.com/install.sh | sh
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        if command -v brew &> /dev/null; then
+            brew install ollama
+        else
+            echo -e "${RED}Error: macOS에서는 Homebrew가 필요합니다. brew install ollama${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}Error: 지원되지 않는 OS입니다.${NC}"
+        exit 1
+    fi
+    if command -v ollama &> /dev/null; then
+        echo -e "${GREEN}✓ Ollama 설치 완료${NC}"
+    else
+        echo -e "${RED}Error: Ollama 설치 실패${NC}"
         exit 1
     fi
 else
@@ -56,8 +101,8 @@ else
 fi
 echo ""
 
-# 4. 환경 변수 파일 생성
-echo -e "${YELLOW}[4/7] 환경 변수 파일 생성 중...${NC}"
+# 5. 환경 변수 파일 생성
+echo -e "${YELLOW}[5/8] 환경 변수 파일 생성 중...${NC}"
 if [ ! -f .env ]; then
     cp .env.example .env
     echo -e "${GREEN}✓ .env 파일 생성 완료${NC}"
@@ -66,8 +111,8 @@ else
 fi
 echo ""
 
-# 5. Docker 서비스 시작
-echo -e "${YELLOW}[5/7] Docker 서비스 시작 중...${NC}"
+# 6. Docker 서비스 시작
+echo -e "${YELLOW}[6/8] Docker 서비스 시작 중...${NC}"
 # docker compose (v2) 또는 docker-compose (v1) 사용
 if docker compose version &> /dev/null; then
     docker compose up -d 2>&1 | grep -v "attribute .version. is obsolete" || true
@@ -79,8 +124,8 @@ sleep 5
 echo -e "${GREEN}✓ Docker 서비스 시작 완료${NC}"
 echo ""
 
-# 6. Python 가상환경 및 의존성 설치
-echo -e "${YELLOW}[6/7] Python 의존성 설치 중...${NC}"
+# 7. Python 가상환경 및 의존성 설치
+echo -e "${YELLOW}[7/8] Python 의존성 설치 중...${NC}"
 if [ ! -d "venv" ]; then
     echo "가상환경 생성 중..."
     python3 -m venv venv
@@ -94,8 +139,11 @@ echo -e "${GREEN}✓ Python 의존성 설치 완료${NC}"
 echo ""
 
 # 7. Ollama 모델 다운로드
-echo -e "${YELLOW}[7/7] Ollama 모델 다운로드${NC}"
+echo -e "${YELLOW}[8/8] Ollama 모델 다운로드${NC}"
 if command -v ollama &> /dev/null; then
+    echo "Ollama 서버 시작 중..."
+    ollama serve &
+    sleep 5
     echo "nomic-embed-text 모델 다운로드 중..."
     ollama pull nomic-embed-text
     
