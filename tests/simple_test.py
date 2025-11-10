@@ -5,6 +5,9 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from langchain_core.globals import set_verbose
+set_verbose(False)
+
 from vector_store import VectorStoreManager
 from langchain_community.llms import Ollama
 from config import config

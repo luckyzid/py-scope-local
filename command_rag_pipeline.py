@@ -3,16 +3,11 @@ from typing import List, Optional
 from langchain_community.llms import Ollama
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
-try:
-    from langchain_community.cache import RedisSemanticCache
-    from langchain_core.globals import set_llm_cache
-    CACHE_AVAILABLE = True
-except ImportError as e:
-    CACHE_AVAILABLE = False
-    CACHE_ERROR = str(e)
+CACHE_AVAILABLE = False
 from vector_store import VectorStoreManager
 from config import config
 import redis
+from PIL import Image
 
 
 class RAGPipeline:
@@ -153,48 +148,94 @@ class RAGPipeline:
     
     def search_similar(self, query: str, k: int = None) -> List[Document]:
         """Search for similar documents.
-        
+
         Args:
             query: Search query
             k: Number of results
-            
+
         Returns:
             List of similar documents
         """
         return self.vector_store_manager.similarity_search(query, k)
 
+    def search_similar_images(self, query_image: Image.Image, k: int = None) -> List[dict]:
+        """Search for similar images.
+
+        Args:
+            query_image: PIL Image to search for
+            k: Number of results
+
+        Returns:
+            List of similar image metadata with scores
+        """
+        if k is None:
+            k = config.rag.top_k_results
+        return self.vector_store_manager.similarity_search_image(query_image, k)
+
 
 def interactive_mode():
     """Run interactive Q&A mode."""
     print("\n=== RAG Q&A System ===")
-    print("Type 'quit' or 'exit' to stop\n")
-    
+    print("Type 'quit' or 'exit' to stop")
+    print("Type 'image <path>' to search for similar images\n")
+
     # Initialize pipeline
     try:
         pipeline = RAGPipeline(use_cache=True)
     except Exception as e:
         print(f"Error initializing pipeline: {e}")
         return
-    
+
     while True:
-        question = input("\n질문을 입력하세요: ").strip()
-        
-        if question.lower() in ['quit', 'exit', 'q']:
+        user_input = input("\n질문을 입력하세요 (또는 'image <path>'로 이미지 검색): ").strip()
+
+        if user_input.lower() in ['quit', 'exit', 'q']:
             print("시스템을 종료합니다.")
             break
-        
-        if not question:
+
+        if not user_input:
             continue
-        
+
+        # Check if it's an image search command
+        if user_input.startswith('image '):
+            image_path = user_input[6:].strip()
+            try:
+                query_image = Image.open(image_path)
+                print(f"\n이미지 '{image_path}'로 유사 이미지 검색 중...")
+                results = pipeline.search_similar_images(query_image)
+
+                print("\n" + "="*60)
+                print(f"쿼리 이미지: {image_path}")
+                print("="*60)
+
+                if results:
+                    print("\n유사 이미지:")
+                    for i, result in enumerate(results, 1):
+                        metadata = result['metadata']
+                        print(f"\n{i}. {metadata.get('filename', 'Unknown')}")
+                        print(f"   출처: {metadata.get('source', 'Unknown')}")
+                        print(f"   유사도: {result['score']:.3f}")
+                        if metadata.get('page'):
+                            print(f"   페이지: {metadata['page']}")
+                else:
+                    print("\n유사 이미지를 찾을 수 없습니다.")
+
+                print("="*60)
+
+            except Exception as e:
+                print(f"이미지 검색 오류: {e}")
+            continue
+
+        # Text query
         try:
             print("\n답변 생성 중...")
-            result = pipeline.query(question)
-            
+            result = pipeline.query(user_input)
+
             print("\n" + "="*60)
             print(f"질문: {result['question']}")
             print("="*60)
             print(f"\n답변:\n{result['answer']}")
-            
+
             if result.get('sources'):
                 print("\n" + "-"*60)
                 print("참고 문서:")
@@ -202,7 +243,7 @@ def interactive_mode():
                     print(f"\n{i}. {source['filename']}")
                     print(f"   내용: {source['content']}")
             print("="*60)
-            
+
         except Exception as e:
             print(f"Error: {e}")
 

@@ -14,6 +14,7 @@ from conversation import ConversationManager
 from evaluation import RAGEvaluator
 from advanced_rag import AdvancedRAG, QueryComplexity
 import redis
+from PIL import Image
 
 
 class EnhancedRAGPipeline:
@@ -299,6 +300,20 @@ class EnhancedRAGPipeline:
             self.conversation_manager.save_session()
             rag_logger.info("Conversation saved")
 
+    def search_similar_images(self, query_image: Image.Image, k: int = None) -> List[dict]:
+        """Search for similar images.
+
+        Args:
+            query_image: PIL Image to search for
+            k: Number of results
+
+        Returns:
+            List of similar image metadata with scores
+        """
+        if k is None:
+            k = config.rag.top_k_results
+        return self.vector_store_manager.similarity_search_image(query_image, k)
+
 
 def interactive_mode():
     """Run interactive Q&A mode with enhanced features."""
@@ -307,11 +322,12 @@ def interactive_mode():
     print("="*70)
     print("\nCommands:")
     print("  - Type your question to get an answer")
+    print("  - 'image <path>' - Search for similar images")
     print("  - 'report' - Show evaluation report")
     print("  - 'save' - Save conversation")
     print("  - 'quit' or 'exit' - Exit the system")
     print("="*70 + "\n")
-    
+
     # Initialize pipeline
     try:
         pipeline = EnhancedRAGPipeline(
@@ -323,55 +339,86 @@ def interactive_mode():
     except Exception as e:
         print(f"Error initializing pipeline: {e}")
         return
-    
+
     while True:
-        question = input("\n💬 질문을 입력하세요: ").strip()
-        
-        if question.lower() in ['quit', 'exit', 'q']:
+        user_input = input("\n💬 질문을 입력하세요 (또는 'image <path>'로 이미지 검색): ").strip()
+
+        if user_input.lower() in ['quit', 'exit', 'q']:
             pipeline.save_conversation()
             print("\n👋 시스템을 종료합니다.")
             break
-        
-        if question.lower() == 'report':
+
+        if user_input.lower() == 'report':
             print(pipeline.get_evaluation_report())
             continue
-        
-        if question.lower() == 'save':
+
+        if user_input.lower() == 'save':
             pipeline.save_conversation()
             print("✅ 대화가 저장되었습니다.")
             continue
-        
-        if not question:
+
+        if not user_input:
             continue
-        
+
+        # Check if it's an image search command
+        if user_input.startswith('image '):
+            image_path = user_input[6:].strip()
+            try:
+                query_image = Image.open(image_path)
+                print(f"\n🔍 이미지 '{image_path}'로 유사 이미지 검색 중...")
+                results = pipeline.search_similar_images(query_image)
+
+                print("\n" + "="*70)
+                print(f"📸 쿼리 이미지: {image_path}")
+                print("="*70)
+
+                if results:
+                    print("\n🖼️  유사 이미지:")
+                    for i, result in enumerate(results, 1):
+                        metadata = result['metadata']
+                        print(f"\n  {i}. {metadata.get('filename', 'Unknown')}")
+                        print(f"     출처: {metadata.get('source', 'Unknown')}")
+                        print(f"     유사도: {result['score']:.3f}")
+                        if metadata.get('page'):
+                            print(f"     페이지: {metadata['page']}")
+                else:
+                    print("\n❌ 유사 이미지를 찾을 수 없습니다.")
+
+                print("="*70)
+
+            except Exception as e:
+                print(f"\n❌ 이미지 검색 오류: {e}")
+            continue
+
+        # Text query
         try:
             print("\n⏳ 답변 생성 중...")
-            result = pipeline.query(question)
-            
+            result = pipeline.query(user_input)
+
             print("\n" + "="*70)
             print(f"📝 질문: {result['question']}")
             print("="*70)
             print(f"\n💡 답변:\n{result['answer']}")
-            
+
             if result.get('sources'):
                 print("\n" + "-"*70)
                 print("📚 참고 문서:")
                 for i, source in enumerate(result['sources'], 1):
                     print(f"\n  {i}. {source['filename']}")
                     print(f"     {source['content'][:150]}...")
-            
+
             # Show metadata
             metadata = result.get('metadata', {})
             print("\n" + "-"*70)
             print(f"⚡ 응답 시간: {metadata.get('response_time', 0):.2f}초")
             print(f"📊 출처 개수: {metadata.get('num_sources', 0)}")
-            
+
             if metadata.get('critique'):
                 critique = metadata['critique']
                 print(f"⭐ 답변 품질: {critique['overall']:.2f}/1.0")
-            
+
             print("="*70)
-            
+
         except Exception as e:
             print(f"\n❌ 오류: {e}")
 

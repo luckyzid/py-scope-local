@@ -35,6 +35,13 @@ class DocumentConfig(BaseModel):
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "200"))
 
 
+class ImageConfig(BaseModel):
+    """Image processing configuration."""
+    embedding_model: str = os.getenv("IMAGE_EMBEDDING_MODEL", "openai/clip-vit-base-patch32")
+    collection_name: str = os.getenv("IMAGE_COLLECTION_NAME", "images")
+    max_image_size: int = int(os.getenv("MAX_IMAGE_SIZE", "512"))
+
+
 class RAGConfig(BaseModel):
     """RAG pipeline configuration."""
     top_k_results: int = int(os.getenv("TOP_K_RESULTS", "5"))
@@ -47,6 +54,7 @@ class Config(BaseModel):
     qdrant: QdrantConfig = QdrantConfig()
     redis: RedisConfig = RedisConfig()
     document: DocumentConfig = DocumentConfig()
+    image: ImageConfig = ImageConfig()
     rag: RAGConfig = RAGConfig()
 
 
